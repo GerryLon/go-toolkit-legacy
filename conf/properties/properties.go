@@ -89,9 +89,9 @@ func (p *Properties) load() error {
 			return
 		}
 
-		key, val, err := parse(string(line))
+		key, val, err := parseOneLine(string(line))
 		if err != nil {
-			log.Printf("Properties parse(), err: %v", err)
+			log.Printf("Properties parseOneLine(), err: %v", err)
 			return
 		}
 
@@ -102,7 +102,7 @@ func (p *Properties) load() error {
 	return nil
 }
 
-func parse(line string) (key, val string, err error) {
+func parseOneLine(line string) (key, val string, err error) {
 	line = strings.TrimSpace(line)
 
 	if len(line) == 0 {
