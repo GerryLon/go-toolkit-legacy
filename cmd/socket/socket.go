@@ -119,15 +119,16 @@ func send(opts *Options) error {
 			case <-ctx.Done():
 				fmt.Println("receive End")
 				return
+
 			default:
 
 				// read from conn
 				s, err := bufio.NewReader(conn).ReadString('\n')
 				if err != nil {
 					fmt.Printf("< Err: %v\n", err)
+					return
 				}
-				fmt.Printf("< %s", s)
-				fmt.Printf("> ")
+				fmt.Printf("%s", s)
 			}
 		}
 	}(ctx)
@@ -148,14 +149,14 @@ func send(opts *Options) error {
 
 		if err != nil {
 			fmt.Printf("inputReader.ReadString() Err: %v\n", err)
-			continue
+			return err
 		}
 
 		_, err := fmt.Fprintf(conn, "%s", line)
 
 		if err != nil {
 			fmt.Printf("fmt.Fprintf(conn) Err: %v\n", err)
-			continue
+			return err
 		}
 	}
 
@@ -183,7 +184,6 @@ func receive(opts *Options) error {
 		}
 
 		err = handleConn(conn)
-
 		if err != nil {
 			if err == io.EOF {
 				break
