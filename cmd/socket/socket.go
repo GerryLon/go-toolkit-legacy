@@ -137,9 +137,8 @@ func send(opts *Options) error {
 	var line string
 
 	// send data to server, stop when get EOF
-	fmt.Printf("> ")
 	for {
-
+		fmt.Printf("> ")
 		line, err = inputReader.ReadString('\n')
 
 		if err == io.EOF {
@@ -148,14 +147,14 @@ func send(opts *Options) error {
 		}
 
 		if err != nil {
-			fmt.Printf("Err: %v\n", err)
+			fmt.Printf("inputReader.ReadString() Err: %v\n", err)
 			continue
 		}
 
 		_, err := fmt.Fprintf(conn, "%s", line)
 
 		if err != nil {
-			fmt.Printf("Err: %v\n", err)
+			fmt.Printf("fmt.Fprintf(conn) Err: %v\n", err)
 			continue
 		}
 	}
@@ -163,7 +162,6 @@ func send(opts *Options) error {
 	return nil
 }
 
-// TODO
 func receive(opts *Options) error {
 	addr, err := net.ResolveTCPAddr("tcp", buildAddress(opts))
 
@@ -184,10 +182,30 @@ func receive(opts *Options) error {
 			return err
 		}
 
-		go handleConn(conn)
+		err = handleConn(conn)
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf("handleConn(), Err: %v\n", err)
+		}
 	}
+	return nil
 }
 
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn) error {
 	defer conn.Close()
+
+	for {
+		s, err := bufio.NewReader(conn).ReadString('\n')
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("< %s", s)
+	}
+
+	return nil
 }
