@@ -4,31 +4,41 @@ import (
 	"flag"
 	"fmt"
 	"github.com/GerryLon/go-toolkit/common"
+	"image"
+	"image/draw"
+	"image/png"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
 // make css sprite image
-// spritemaker -s sourceDir -o /path/to/sprite.png
+// example: ./spritemaker.exe -s E:/test/sprite/7185 -o E:/test/sprite/sprite.png -p 20
+// spritemaker -s sourceDir -o /path/to/sprite.png -p padding
 // TODO: -l layout
 // TODO: -q quality
 func main() {
 	s := flag.String("s", "", "source dir")
-	o := flag.String("o", "", "output image name(with path)")
+	o := flag.String("o", "", "output image name(with path, default is ./sprite.png)")
+	p := flag.Int("p", 2, "padding")
 	flag.Parse()
 
-	*s = "E:/desktop/wallpaper"
-
+	// *s = "E:/test/sprite/7185"
+	// *o = "E:/test/sprite/sprite.png"
 	images, err := getImagesFromDir(*s)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	writeSpriteImage(*o, images)
+	err = writeSpriteImage(*o, images, *p)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
+// 从给定的源文件获取图片(只获取一级,不递归)
 func getImagesFromDir(src string) ([]string, error) {
 	var images []string
 
@@ -75,6 +85,8 @@ func getImagesFromDir(src string) ([]string, error) {
 		}
 
 		if common.HasSuffix(file.Name(), imageSuffixes) {
+
+			// multi images with absolute path
 			images = append(images, filepath.Join(src, file.Name()))
 		}
 	}
@@ -86,22 +98,72 @@ func getImagesFromDir(src string) ([]string, error) {
 	return images, nil
 }
 
-func writeSpriteImage(dst string, images []string) error {
-
+// 将指定的一些小图拼成大图
+func writeSpriteImage(dst string, images []string, padding int) error {
 	out := dst
-
 	if out == "" {
-		out = common.MustGetCWD()
+		out = filepath.Join(common.MustGetCWD(), "sprite.png")
 	}
 
-	_, err := os.Create(dst)
+	sprite, err := os.Create(out)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("dst dir: %s is not exist", dst)
-		} else {
-			return fmt.Errorf("write image to dst dir: %s, err: %v", dst, err)
+		return fmt.Errorf("write image to: %s, err: %v", dst, err)
+	}
+	defer sprite.Close()
+
+	// 计算最终拼出的图的大小
+	dstImgSize := calcDstImgSize(images, padding)
+	spriteImage := image.NewNRGBA(image.Rect(0, 0, dstImgSize.Width, dstImgSize.Height))
+	tmpRect := image.Rectangle{Min: image.Point{X: 0, Y: 0}, Max: image.Point{X: 0, Y: 0}} // 临时变量
+
+	for index, img := range images {
+		decode := common.ImageDecode(filepath.Ext(img))
+		file, err := os.Open(img)
+		if err != nil {
+			return err
+		}
+
+		i, err := decode(file)
+		file.Close()
+		if err != nil {
+			return err
+		}
+		tmpRect.Max.X += i.Bounds().Max.X
+		tmpRect.Min.X = tmpRect.Max.X - i.Bounds().Max.X
+		tmpRect.Min.Y = 0
+		if i.Bounds().Max.Y > tmpRect.Max.Y {
+			tmpRect.Max.Y = i.Bounds().Max.Y
+		}
+
+		if index > 0 {
+			tmpRect.Min.X += padding
+			tmpRect.Max.X += padding
+		}
+
+		// fmt.Printf("%s bounds: %v\n", img, tmpRect)
+		draw.Draw(spriteImage, tmpRect, i, image.Point{0, 0}, draw.Over)
+	}
+
+	_ = png.Encode(sprite, spriteImage)
+	return nil
+}
+
+func calcDstImgSize(images []string, padding int) common.Size {
+	size := common.Size{}
+
+	// 当前策略, 一字排开, 高度取最高的图片的高
+	for _, img := range images {
+		tmpSize := common.MustGetImageSize(img)
+		size.Width += tmpSize.Width
+
+		if tmpSize.Height > size.Height {
+			size.Height = tmpSize.Height
 		}
 	}
 
-	return nil
+	// 加上 n - 1个padding
+	// + len(images)是为了避免图片尺寸是小数的问题, 最后拼出来的图可能不全
+	size.Width += (len(images)-1)*padding + len(images)
+
+	return size
 }

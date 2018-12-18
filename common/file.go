@@ -25,6 +25,15 @@ func ReadLine(rd io.Reader, callback func(line []byte, err error)) {
 	}
 }
 
+func IsDir(name string) bool {
+	f, err := os.Stat(name)
+	if err != nil {
+		return false
+	}
+
+	return f.IsDir()
+}
+
 // get curr dir of running go program
 func GetCWD() (string, error) {
 	return filepath.Abs(filepath.Dir(os.Args[0]))
