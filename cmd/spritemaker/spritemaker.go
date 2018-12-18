@@ -6,21 +6,32 @@ import (
 	"github.com/GerryLon/go-toolkit/common"
 	"image"
 	"image/draw"
-	"image/png"
+	"image/jpeg"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
+const (
+	defaultSpriteName = "sprite.png"
+	defaultPadding    = 2
+	defaultQuality    = 75
+)
+
 // make css sprite image
-// example: ./spritemaker.exe -s E:/test/sprite/7185 -o E:/test/sprite/sprite.png -p 20
-// spritemaker -s sourceDir -o /path/to/sprite.png -p padding
+// example: ./spritemaker.exe -s E:/test/sprite/7185 -o E:/test/sprite/sprite.png
+// spritemaker OPTIONS
+// OPTIONS:
+// -s sourceDir
+// -o /path/to/sprite.png
+// -p padding(default 2)
+// -q quality(default 75, only for jpeg format, valid value:[1, 100])
 // TODO: -l layout
-// TODO: -q quality
 func main() {
 	s := flag.String("s", "", "source dir")
 	o := flag.String("o", "", "output image name(with path, default is ./sprite.png)")
 	p := flag.Int("p", 2, "padding")
+	q := flag.Int("q", 75, "quality")
 	flag.Parse()
 
 	// *s = "E:/test/sprite/7185"
@@ -31,7 +42,7 @@ func main() {
 		return
 	}
 
-	err = writeSpriteImage(*o, images, *p)
+	err = writeSpriteImage(*o, images, *p, *q)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -99,12 +110,21 @@ func getImagesFromDir(src string) ([]string, error) {
 }
 
 // 将指定的一些小图拼成大图
-func writeSpriteImage(dst string, images []string, padding int) error {
+func writeSpriteImage(dst string, images []string, padding int, quality int) error {
 	out := dst
+
+	// param check
 	if out == "" {
 		out = filepath.Join(common.MustGetCWD(), "sprite.png")
 	}
+	if padding < 0 {
+		padding = defaultPadding
+	}
+	if quality < 1 || quality > 100 {
+		quality = defaultQuality
+	}
 
+	// create sprite image
 	sprite, err := os.Create(out)
 	if err != nil {
 		return fmt.Errorf("write image to: %s, err: %v", dst, err)
@@ -135,6 +155,7 @@ func writeSpriteImage(dst string, images []string, padding int) error {
 			tmpRect.Max.Y = i.Bounds().Max.Y
 		}
 
+		// 将padding算上
 		if index > 0 {
 			tmpRect.Min.X += padding
 			tmpRect.Max.X += padding
@@ -144,8 +165,14 @@ func writeSpriteImage(dst string, images []string, padding int) error {
 		draw.Draw(spriteImage, tmpRect, i, image.Point{0, 0}, draw.Over)
 	}
 
-	_ = png.Encode(sprite, spriteImage)
-	return nil
+	encodeFn := common.ImageEncode(filepath.Ext(out))
+
+	// jpeg with quality
+	var encodeOptions interface{}
+	if common.IsJPEG(out) {
+		encodeOptions = &jpeg.Options{Quality: quality}
+	}
+	return encodeFn(sprite, spriteImage, encodeOptions)
 }
 
 func calcDstImgSize(images []string, padding int) common.Size {
