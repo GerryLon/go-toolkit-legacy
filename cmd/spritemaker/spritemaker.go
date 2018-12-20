@@ -115,7 +115,7 @@ func writeSpriteImage(dst string, images []string, padding int, quality int) err
 
 	// param check
 	if out == "" {
-		out = filepath.Join(common.MustGetCWD(), "sprite.png")
+		out = filepath.Join(common.MustGetCWD(), defaultSpriteName)
 	}
 	if padding < 0 {
 		padding = defaultPadding
