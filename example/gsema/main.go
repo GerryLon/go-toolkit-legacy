@@ -8,6 +8,19 @@ import (
 
 var sema = gsema.NewSemaphore(3)
 
+// output
+// seq: 9, time: 1550465827
+// seq: 3, time: 1550465827
+// seq: 2, time: 1550465827
+// seq: 4, time: 1550465828
+// seq: 5, time: 1550465828
+// seq: 6, time: 1550465828
+// seq: 8, time: 1550465829
+// seq: 7, time: 1550465829
+// seq: 0, time: 1550465829
+// seq: 1, time: 1550465830
+//
+// Process finished with exit code 0
 func main() {
 	userCount := 10 // 需要执行的goroutine数
 
